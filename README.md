@@ -3,19 +3,32 @@
 ## Project Overview
 
 ### Vision
-Build two foundational products that democratize market intelligence:
-1. **Finance Product**: Aggregates and presents stock market news (IPOs, earnings, market-moving events) with actionable recommendations
-2. **Real Estate Product**: Does the same for real estate (new listings, price changes, development news)
+**"Bloomberg Terminal for the Everyman"**
 
-Both products solve the same core problem: **providing timely, actionable market intelligence for busy people who want to invest but lack time to keep up with fast-moving markets**.
+Democratize institutional-grade market intelligence by aggregating and presenting stock market news (IPOs, earnings, market-moving events) with actionable, digestible recommendations.
+
+**Core problem**: Providing timely, actionable market intelligence for busy people who want to invest but lack time to keep up with fast-moving markets.
+
+### The Opportunity
+Bloomberg Terminal costs $24,000/year and requires professional training. This platform delivers:
+- **Institutional-grade intelligence** at retail pricing ($0-50/month)
+- **20 minutes per day** vs hours of Bloomberg analysis
+- **Digestible insights** vs overwhelming data terminals
+- **Non-expert accessible** vs finance professional only
 
 ### Core Problem Statement
-"These worlds move fast, and I'm too busy to keep up with it"
+- "These worlds move fast, and I'm too busy to keep up with it"
+- "**Solution: The everyman's bloomberg terminal**"
 
 ### Success Metrics
 - 20 minutes per day engagement time
 - 2-3 confident investment decisions per month
 - Information accessible to non-experts (between Bloomberg Terminal complexity and basic Apple stock notifications)
+
+### Competitive Advantage
+**Not the data sources - it's the intelligence layer built on top of free/cheap data.**
+- Bloomberg's weakness = Our opportunity: Price, complexity, time required, accessibility
+- Our moat = Attribution engine that answers "WHY did this stock move?" using publicly available data
 
 ---
 
@@ -113,12 +126,40 @@ Future: Non-expert investors who want confident, digestible recommendations
 
 ### Tech Stack
 
-#### Data Layer
-- **yfinance** (Python) - Free Yahoo Finance data
-- **Alpha Vantage** - Free tier for fundamentals, news sentiment (500 calls/day)
-- **Financial Modeling Prep API** - $0-29/mo, excellent fundamentals + earnings
-- **Marketaux** - Free tier for news (100 requests/day, real-time)
-- **EDGAR API** (SEC) - Free for insider trading, 10-Ks, 8-Ks
+#### Data Layer (MVP: 100% Free Tier - $0/month)
+
+**Critical Data Sources (All Free):**
+- **yfinance** - FREE, unlimited EOD prices, basic fundamentals
+- **Financial Modeling Prep** - FREE tier: 250 calls/day (fundamentals, earnings, analyst ratings)
+  - https://financialmodelingprep.com/developer/docs/
+- **SEC EDGAR API** - FREE, unlimited official filings (8-K, 10-K, 10-Q, Form 4)
+  - https://www.sec.gov/edgar/sec-api-documentation
+- **Finnhub** - FREE tier: 60 calls/min (news, earnings calendar, sentiment)
+  - https://finnhub.io/
+- **Marketaux** - FREE tier: 100 requests/day (real-time news)
+  - https://www.marketaux.com/documentation
+- **FRED API** - FREE, unlimited (CPI, unemployment, Fed rates, macro data)
+  - https://fred.stlouisfed.org/docs/api/fred/
+- **FINRA** - FREE short interest data (twice monthly)
+- **Reddit/StockTwits APIs** - FREE social sentiment
+
+**Optional Upgrades (Phase 2):**
+- **Financial Modeling Prep Pro**: $29/mo (higher rate limits)
+- **Polygon.io**: $29-200/mo (real-time prices, options data)
+- **Alpha Vantage**: Backup for fundamentals (500 calls/day free)
+
+**Deprioritized (Expensive, Low ROI for MVP):**
+-  Professional options flow: $200+/mo
+-  Real-time tick data: $500-5000/mo
+-  Alternative data (satellite, credit cards): $$$$$
+-  Bloomberg/FactSet terminals: $24k-50k/year
+
+**Data Philosophy:**
+- Start with 100% free tier - validates product before spending on data
+- 80% of Bloomberg's value comes from data that's free or nearly free
+- Competitive advantage is intelligence layer, not raw data access
+- Upgrade only when revenue justifies cost
+   
 
 #### Backend (Python)
 - **Pandas** - Data manipulation
@@ -155,16 +196,33 @@ Future: Non-expert investors who want confident, digestible recommendations
 ## Development Roadmap
 
 ### Week 1-2: Data Pipeline
-**Goal**: Reliable data ingestion
+**Goal**: Reliable data ingestion from free sources
 
-- [ ] Set up development environment (Python 3.10+, PostgreSQL)
-- [ ] Register for API keys (yfinance, Alpha Vantage, Marketaux, FMP)
-- [ ] Pull daily price data for S&P 500
-- [ ] Store in database with proper schema
+**Priority 1: Core Data (100% Free)**
+- [x] Set up development environment (Python 3.10+, PostgreSQL)
+- [x] Register for free API keys:
+  - [x] Financial Modeling Prep (250 calls/day free)
+  - [x] Finnhub (60 calls/min free) - Using Marketaux instead
+  - [x] Marketaux (100 requests/day free)
+  - [x] FRED API (unlimited free) - Key not needed, public access
+  - [x] SEC EDGAR (unlimited free) - No key needed, public API
+- [ ] Build data ingestion pipeline:
+  - [ ] yfinance: Daily EOD prices for S&P 500
+  - [ ] FMP: Fundamentals (P/E, EPS, revenue growth)
+  - [ ] SEC EDGAR: 8-K filings (material events)
+  - [ ] Finnhub: News + earnings calendar
+  - [ ] FRED: Macro indicators (CPI, unemployment)
+- [ ] Store in PostgreSQL with proper schema
 - [ ] Calculate basic technical indicators (RSI, MACD, volume)
-- [ ] Verify data quality and consistency
+- [ ] Verify data quality and cross-validate (yfinance vs FMP)
 
-**Deliverable**: Script that fetches and stores daily market data
+**Priority 2: Attribution Engine Foundation**
+- [ ] Link price movements to events (8-K filings, earnings, news)
+- [ ] Build "why detector": If stock moves >3%, check for catalyst within 48h
+
+**Deliverable**: Script that fetches free data and identifies basic catalysts
+
+**Key Insight**: You can build 80% of Bloomberg's value with $0 in data costs
 
 ### Week 3-4: Screening Logic
 **Goal**: Identify interesting candidates
@@ -293,7 +351,7 @@ class MyStrategy(bt.Strategy):
 
 ## AI Integration Strategy
 
-### ✅ Good Uses of AI/LLMs
+### Good Uses of AI/LLMs
 
 1. **Data Processing & Extraction**
    - Parse earnings call transcripts
@@ -319,7 +377,7 @@ class MyStrategy(bt.Strategy):
    - "Show me tech stocks with earnings this week"
    - Query your data conversationally
 
-### ❌ Bad Uses of AI/LLMs
+### Bad Uses of AI/LLMs
 
 1. **Final Investment Recommendations** - No accountability, hallucination risk
 2. **Quantitative Scoring/Ranking** - LLMs can't do math reliably
@@ -384,37 +442,52 @@ pip install yfinance pandas-ta quantstats pypfopt
 
 ### MVP Monthly Costs
 
-#### Minimum Viable ($0/month)
-- Run locally on laptop
-- Free API tiers only (yfinance, Alpha Vantage free, Marketaux free)
-- SQLite database
-- Email via Gmail SMTP
-- Manual trigger
-
-**Limitations**: Rate limits, tied to personal machine, less reliable
-
-#### Recommended MVP ($0-15/month)
-- **Data & APIs**: $0-29/mo
-  - yfinance: Free
-  - Alpha Vantage: Free (500 calls/day)
-  - Financial Modeling Prep: $0-29/mo (free tier: 250 calls/day)
+#### Recommended MVP ($0/month - Start Here)
+**All free tier, validates product before spending:**
+- **Data & APIs**: $0
+  - yfinance: Free unlimited EOD prices
+  - Financial Modeling Prep: Free tier (250 calls/day)
+  - Finnhub: Free tier (60 calls/min)
   - Marketaux: Free (100 requests/day)
-- **Hosting**: $0-10/mo
-  - AWS Free Tier (12 months) or local: $0
-  - DigitalOcean droplet: $5/mo
-- **Database**: $0 (included in free tier or local)
-- **Email**: $0 (SendGrid: 100/day free, Mailgun: 5000 free for 3 months)
-- **AI (optional)**: $0-20/mo
-  - OpenAI/Anthropic APIs: $5-20/mo
-  - Or use free local models: $0
+  - SEC EDGAR: Free unlimited
+  - FRED API: Free unlimited
+  - Reddit/StockTwits: Free
+- **Hosting**: $0
+  - Run locally on laptop OR AWS Free Tier (12 months)
+- **Database**: $0
+  - PostgreSQL locally OR AWS RDS free tier
+- **Email**: $0
+  - SendGrid: 100/day free OR Gmail SMTP
+- **AI (optional)**: $0
+  - Use free local models (Llama) OR minimal OpenAI usage ($1-5/mo)
 
-**Total**: $0-15/mo realistically for personal use
+**Total: $0/month**
 
-### Scaling Costs (Future)
+**Limitations**: Rate limits (but sufficient for S&P 500 daily), tied to personal machine (but fine for MVP)
 
-**100 users**: ~$100-200/mo
-**1,000 users**: ~$400-1,000/mo
-**10,000 users**: ~$2-5K/mo (but you'd be charging by then)
+**Key Point**: You don't need to spend money to validate the product. Free tier covers 100% of MVP functionality.
+
+### Scaling Costs (Revenue-Driven)
+
+**Phase 1: $0 MRR (Personal use)**
+- Cost: $0/month
+- Use 100% free tier
+
+**Phase 2: $50 MRR (10 users × $5/mo)**
+- Cost: $29/mo
+- Upgrade: FMP Pro for better rate limits
+
+**Phase 3: $500 MRR (50 users × $10/mo)**
+- Cost: ~$100-200/mo
+- Upgrade: Polygon.io for real-time data
+- Hosting: DigitalOcean/AWS paid tier
+
+**Phase 4: $2000+ MRR (200+ users × $10/mo)**
+- Cost: ~$400-1000/mo
+- Add: Options flow data, premium news feeds
+- Profit margin: 50-80%
+
+**Key principle**: Spend only when revenue justifies it. Start at $0, scale spending as revenue grows.
 
 ---
 
@@ -437,25 +510,7 @@ pip install yfinance pandas-ta quantstats pypfopt
    - Treasury data, corporate bonds
    - Yield curves, credit spreads
 
-#### Path 2: Real Estate Product (5-7 years timeline)
-**Initial focus: Atlanta market**
-
-**Data sources**:
-- Zillow/Redfin APIs or scraping
-- Public records (sales, tax assessments, permits)
-- Local news (developments, zoning)
-- Economic indicators (Atlanta Fed, employment, migration)
-- Neighborhood data (crime, schools, new businesses)
-
-**Structure**:
-- Weekly report: Market overview, notable listings, price movements, development news
-- Daily digest: Triggered by significant events only
-
-**Similar architecture to finance product**:
-- Data ingestion → Analysis → Scoring → Recommendation → Delivery
-- Real estate moves slower, so less frequent updates
-
-#### Path 3: Multi-User Product
+#### Path 2: Multi-User Product
 1. User accounts and profiles
 2. Personalization (risk tolerance, preferences, portfolio tracking)
 3. Performance tracking per user
@@ -503,11 +558,11 @@ pip install yfinance pandas-ta quantstats pypfopt
 - [ ] Willingness to pay for the service
 
 ### Long-Term Vision (2-5 years)
-- [ ] Finance product covers all major asset classes
-- [ ] Real estate product launched in Atlanta
-- [ ] Both products share infrastructure
-- [ ] Monetization strategy validated
+- [ ] Finance product covers all major asset classes (equities, ETFs, options, crypto, bonds)
+- [ ] Multi-user platform with personalization
+- [ ] Monetization strategy validated ($10-50/mo subscriptions)
 - [ ] Community of users benefiting from democratized market intelligence
+- [ ] Proven track record of recommendations beating S&P 500
 
 ---
 
@@ -534,6 +589,211 @@ pip install yfinance pandas-ta quantstats pypfopt
    - Build confidence in your approach
 
 **The best time to start was yesterday. The second best time is now.**
+
+---
+
+## Financial Data Sources for Real-Time Market Insight
+
+This document catalogs APIs, feeds, and data sources you can use to understand **why the stock market behaves a certain way** at any given time — from fundamentals and filings to alternative signals and sentiment.
+
+---
+
+### Core Market & Reference Data
+
+These are the backbone of any financial data system: prices, fundamentals, filings, and macro data.
+
+#### **1. Historical & Intraday Prices**
+- **[yfinance](https://github.com/ranaroussi/yfinance)**
+  - Free, easy-to-use for daily or intraday OHLCV data.
+  - **Pull:** OHLCV, splits, dividends, ticker metadata.
+  - **Use:** End-of-day updates (daily) or intraday (1–5m).
+- **[Polygon.io](https://polygon.io/)**
+  - Tick-level trades, quotes, and WebSocket for real-time data.
+  - **Pull:** Tick trades, NBBO, aggregated bars.
+  - **Use:** Real-time or backfills via REST.
+
+#### **2. Exchange & Consolidated Feeds**
+- **[IEX Cloud](https://iexcloud.io/)** / **IEX Exchange**
+  - Consolidated quotes, historical prices, and fundamentals.
+  - Cost-effective alternative for real-time data.
+
+#### **3. Fundamentals & Financial Statements**
+- **[Financial Modeling Prep (FMP)](https://financialmodelingprep.com/developer/docs/)**
+  - Income, balance sheet, cash flow, key ratios, earnings, and analyst data.
+  - Great free tier; JSON endpoints.
+- **[Alpha Vantage](https://www.alphavantage.co/)**
+  - Fundamentals and technical indicators.
+  - Free but with strict rate limits.
+
+#### **4. SEC Filings**
+- **[EDGAR API](https://www.sec.gov/edgar/sec-api-documentation)** / [sec-api.io](https://sec-api.io/)
+  - Machine-readable filings: 10-K, 10-Q, 8-K, Form 4.
+  - **Pull:** 8-K (events), Form 4 (insiders), S-1 (IPOs).
+
+#### **5. Macro & Economic Indicators**
+- **[FRED API](https://fred.stlouisfed.org/docs/api/fred/)**
+  - Unemployment, CPI, GDP, interest rates, etc.
+  - Use to correlate macro conditions with market movements.
+
+---
+
+### News & Real-Time Event / Sentiment Data
+
+News and sentiment are often the *earliest indicators* of price movement.
+
+#### **1. Market News APIs**
+- **[Finnhub](https://finnhub.io/)**
+  - News, earnings, transcripts, analyst ratings, sentiment.
+  - **Pull:** News headlines, sentiment, earnings calendars.
+- **[Marketaux](https://www.marketaux.com/)** / **[NewsAPI](https://newsapi.org/)** / **Benzinga**
+  - Marketaux and NewsAPI are low-cost broad feeds.
+  - Benzinga offers faster, premium financial headlines.
+
+#### **2. Earnings Call Transcripts**
+- **Sources:** Finnhub, Seeking Alpha, FactSet, Refinitiv.
+  - Analyze management tone and surprises using FinBERT or LLMs.
+
+#### **3. Social Sentiment**
+- **[StockTwits API](https://api.stocktwits.com/developers)**
+- **Reddit (via [Pushshift](https://github.com/pushshift/api))**
+- **Twitter/X API**
+  - **Pull:** Message volumes, trending tickers, bullish/bearish sentiment.
+
+#### **4. Analyst & Brokerage Research**
+- **Refinitiv**, **FactSet**, **AlphaSense** (paid)
+  - Track analyst upgrades/downgrades and price target changes.
+
+---
+
+### Market Microstructure & Flow Data
+
+Short-term market movements often stem from order pressure, options activity, and fund flows.
+
+#### **1. Options Flow**
+- **[ORATS](https://orats.com/)** / **Polygon** / **Tradier** / **LiveVol**
+  - Capture large options trades or sweeps as early signals of sentiment.
+
+#### **2. ETF Flows & Holdings**
+- **iShares / Vanguard APIs**
+  - Daily holdings and inflows/outflows; track sector pressure.
+
+#### **3. Short Interest**
+- **[FINRA Short Interest](https://www.finra.org/filing-reporting/regulatory-filings/short-interest)**
+  - Monitor T+1 reports and borrow rates for squeeze potential.
+
+#### **4. Order Book / Level 2 Data**
+- **Polygon / Direct Exchange Feeds**
+  - Analyze liquidity depth and order book imbalance.
+
+---
+
+### Alternative & Contextual Data
+
+"Alternative data" offers insight into underlying **economic behavior** beyond traditional finance metrics.
+
+#### **1. Web & App Traffic**
+- **SimilarWeb**, **App Annie**, **Google Play / App Store**
+  - Track engagement trends as early indicators of growth.
+
+#### **2. Job Postings & Hiring**
+- **LinkedIn**, **Indeed**, **Glassdoor APIs**
+  - Hiring slowdowns or spikes hint at company growth cycles.
+
+#### **3. Consumer Spending**
+- **Earnest Research**, **Yodlee**, **Neilsen**
+  - Transaction-level data for consumer-driven companies.
+
+#### **4. Satellite / Foot Traffic**
+- **Orbital Insight**, **SafeGraph**, **Placer.ai**
+  - Retail and logistics movement from geospatial data.
+
+#### **5. Google Trends**
+- Free, fast proxy for public attention and brand interest.
+
+---
+
+### Scraping & Crawling Targets
+
+> **Note:** Always follow `robots.txt` and Terms of Service; avoid paywalled or proprietary content.
+
+- **Company IR pages:** detect new press releases or filings.
+- **RSS feeds:** Reuters, CNBC, Bloomberg, WSJ.
+- **Earnings transcripts:** Seeking Alpha, Motley Fool.
+- **Reddit/StockTwits:** track post spikes for retail sentiment.
+
+---
+
+### Data Ingestion & Processing Stack
+
+**Recommended lightweight MVP stack:**
+
+| Layer | Tool | Purpose |
+|-------|------|----------|
+| **Scheduling** | Cron / Celery | Regular pulls (hourly/daily) |
+| **Storage** | PostgreSQL / TimescaleDB | Timeseries + metadata |
+| **Normalization** | Pydantic models | Unify schemas across APIs |
+| **Sentiment** | FinBERT / GPT-4o-mini | Summarize or score text |
+| **Backups** | Cross-validation | Validate prices from multiple APIs |
+
+---
+
+### What to Collect Each Run
+
+| Category | Key Data Points |
+|-----------|----------------|
+| Price & Volume | OHLCV (daily/intraday) |
+| Technical Indicators | RSI, MACD, MAs, volume spikes |
+| Earnings | EPS beats/misses, guidance |
+| SEC Filings | 8-K, 10-K, Form 4 |
+| News & Sentiment | Headlines, tone, clustering |
+| Options Flow | Unusual OTM buys, open interest |
+| Analyst Actions | Rating & target changes |
+| ETF Flows | Inflows/outflows |
+| Short Interest | Short volume, borrow rates |
+| Macro | CPI, Fed decisions, unemployment |
+| Social | Reddit/StockTwits/Twitter activity |
+| Company Ops | Job listings, launches, closures |
+
+---
+
+### Implementation Tips
+
+- **Normalize timestamps** → all UTC, nearest minute.
+- **Classify latency tiers** → (real-time, near-real-time, daily, quarterly).
+- **Add confidence scoring** → cross-source confirmation boosts reliability.
+- **Cache expensive data** → fundamentals & filings rarely change.
+- **Stay compliant** → respect API licensing & TOS.
+
+---
+
+### MVP-Ready Stack (High ROI, $0 Cost)
+
+| Category | Tool | Cost |
+|-----------|------|------|
+| **Price Data** | yfinance | FREE |
+| **Fundamentals** | Financial Modeling Prep (free tier) | FREE |
+| **News/Sentiment** | Finnhub + Marketaux (free tiers) | FREE |
+| **Filings** | SEC EDGAR API | FREE |
+| **Macro Data** | FRED API | FREE |
+| **Social Sentiment** | Reddit + StockTwits APIs | FREE |
+| **Short Interest** | FINRA | FREE |
+
+**Total MVP Data Cost: $0/month**
+
+This stack provides 80% of Bloomberg Terminal's core functionality using only free data sources.
+
+---
+
+### Data Collection Next Steps
+
+Choose one to implement next:
+
+1. **API Integration Plan**
+   Endpoints, rate limits, and cost estimates for a ready-to-build pipeline.
+2. **Example ETL Script**
+   Pulls price + fundamentals + news for 10 tickers → PostgreSQL schema.
+3. **"Why" Attribution Logic**
+   SQL schema + pseudocode to link price movements to catalysts (news, filings, options flow).
 
 ---
 
