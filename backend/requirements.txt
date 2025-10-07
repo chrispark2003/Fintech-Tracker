@@ -1,0 +1,42 @@
+# FastAPI Backend Dependencies
+# Bloomberg for Everyman - Financial Intelligence Platform
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Data & APIs
+yfinance==0.2.32
+requests==2.31.0
+python-dotenv==1.0.0
+pydantic-settings==2.1.0
+
+# Data Analysis
+pandas==2.1.3
+numpy==1.26.2
+pandas-ta==0.3.14b0
+
+# Financial Libraries
+quantstats==0.0.62
+
+# Caching & Task Queue
+redis==5.0.1
+celery==5.3.4
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+
+# AWS Lambda adapter
+mangum==0.17.0
+
+# Development
+pytest==7.4.3
+black==23.11.0
+flake8==6.1.0

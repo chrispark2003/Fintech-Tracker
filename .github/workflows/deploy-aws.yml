@@ -1,0 +1,169 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: fintech-tracker-backend
+  LAMBDA_FUNCTION_NAME: fintech-tracker-api
+  S3_BUCKET: fintech-tracker-frontend
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+
+jobs:
+  deploy-backend-lambda:
+    name: Deploy Backend to Lambda
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build Lambda package
+        run: |
+          cd backend
+          pip install -t package -r requirements.txt
+          pip install -t package mangum
+          cd package
+          zip -r ../lambda_function.zip .
+          cd ..
+          zip -g lambda_function.zip -r app/
+          zip -g lambda_function.zip lambda_handler.py
+
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --zip-file fileb://backend/lambda_function.zip
+
+      - name: Update Lambda environment variables
+        run: |
+          aws lambda update-function-configuration \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --environment "Variables={
+              DATABASE_URL=${{ secrets.DATABASE_URL }},
+              REDIS_URL=${{ secrets.REDIS_URL }},
+              FINPREP_API_KEY=${{ secrets.FINPREP_API_KEY }},
+              ALPHAVANTAGE_API_KEY=${{ secrets.ALPHAVANTAGE_API_KEY }},
+              MARKETAUX_API_KEY=${{ secrets.MARKETAUX_API_KEY }}
+            }"
+
+  deploy-backend-ecs:
+    name: Deploy Backend to ECS (Alternative)
+    runs-on: ubuntu-latest
+    if: false  # Enable this if using ECS instead of Lambda
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster fintech-tracker-cluster \
+            --service fintech-tracker-backend \
+            --force-new-deployment
+
+  deploy-frontend:
+    name: Deploy Frontend to S3 + CloudFront
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build Next.js
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.API_GATEWAY_URL }}
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Export static site
+        run: |
+          cd frontend
+          npm run export || echo "Using .next/static if export not configured"
+
+      - name: Sync to S3
+        run: |
+          cd frontend
+          if [ -d "out" ]; then
+            aws s3 sync out/ s3://${{ env.S3_BUCKET }} --delete
+          else
+            aws s3 sync .next/static/ s3://${{ env.S3_BUCKET }}/_next/static/ --delete
+          fi
+
+      - name: Invalidate CloudFront cache
+        if: env.CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  notify:
+    name: Notify deployment status
+    runs-on: ubuntu-latest
+    needs: [deploy-backend-lambda, deploy-frontend]
+    if: always()
+    steps:
+      - name: Deployment successful
+        if: needs.deploy-backend-lambda.result == 'success' && needs.deploy-frontend.result == 'success'
+        run: echo "Deployment completed successfully"
+
+      - name: Deployment failed
+        if: needs.deploy-backend-lambda.result == 'failure' || needs.deploy-frontend.result == 'failure'
+        run: |
+          echo "Deployment failed"
+          exit 1
